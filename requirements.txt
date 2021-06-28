@@ -1,0 +1,4 @@
+google-cloud-speech==2.4.1
+google_oauth2_tool
+pyaudio==0.2.11
+six==1.16.0

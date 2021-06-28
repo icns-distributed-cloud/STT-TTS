@@ -29,12 +29,12 @@ def makeFile(textList, *adder):
     for i, text in enumerate(textList):
         if type(text) == type(list()):
             with open('tts_output/'+str(adder)+str(i)+'_eng.mp3','wb') as out:
-                out.write(exchange_eng(text[0]))
+                out.write(exchange_kor(text[0]))
             with open('tts_output/'+str(adder)+str(i)+'_kor.mp3','wb') as out:
-                out.write(exchange_eng(text[1]))
+                out.write(exchange_kor(text[1]))
         else:
             with open('tts_output/' + str(adder) + str(i) + '.mp3', 'wb') as out:
-                out.write(exchange_eng(text))
+                out.write(exchange_kor(text))
 
 location = ['안녕','in a clothing store','at a construction site']
 makeFile(location,'location')

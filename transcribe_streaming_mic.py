@@ -32,12 +32,19 @@ import re
 import sys
 
 from google.cloud import speech
+from google.oauth2 import service_account
 import pyaudio
 from six.moves import queue
 
 # Audio recording parameters
 RATE = 16000
 CHUNK = int(RATE / 10)  # 100ms
+
+credentials = service_account.Credentials.from_service_account_file(
+    './')
+
+scoped_credentials = credentials.with_scopes(
+    ['https://www.googleapis.com/auth/cloud-platform'])
 
 class MicrophoneStream(object):
     """Opens a recording stream as a generator yielding the audio chunks."""
@@ -167,7 +174,7 @@ def main():
     # for a list of supported languages.
     language_code = "ko-KR"  # a BCP-47 language tag
 
-    client = speech.SpeechClient()
+    client = speech.SpeechClient(credentials=credentials)
     config = speech.RecognitionConfig(
         encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
         sample_rate_hertz=RATE,

@@ -37,6 +37,8 @@ import pyaudio
 from six.moves import queue
 
 import playsound
+import aigo_destination_speech
+
 # Audio recording parameters
 RATE = 16000
 CHUNK = int(RATE / 10)  # 100ms
@@ -126,7 +128,7 @@ def listen_print_loop(responses):
     final one, print a newline to preserve the finalized transcription.
     """
     num_chars_printed = 0
-    aigo_state = 0                         # state 1 : command waiting
+    aigo_state = 0                         # state 1 : command waiting , state 2 : destination command waiting
     for response in responses:
 
 
@@ -168,9 +170,18 @@ def listen_print_loop(responses):
             if(aigo_state == 1):
                 if("길찾기" in command or "길 찾기" in command):
                     playsound.playsound('./tts_output/destination0_kor.mp3')
+                    aigo_state = 2
                 else : 
                     playsound.playsound('./tts_output/commandNotFound0_kor.mp3')
                     aigo_state = 0
+            
+            elif(aigo_state == 2):
+                if(len(command) != 0):
+                    aigo_destination_speech.speech_destination(command)
+                    playsound.playsound('./tts_output/destination_speech0_kor.mp3')
+                    
+                    aigo_state = 0
+
 
             if("아이고야" in command and aigo_state ==0):
                 playsound.playsound('./tts_output/parden0_kor.mp3')        # parden tts  and aigo has command waiting state.

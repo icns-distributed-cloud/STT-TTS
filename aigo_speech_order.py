@@ -171,6 +171,9 @@ def listen_print_loop(responses):
                 if("길찾기" in command or "길 찾기" in command):
                     playsound.playsound('./tts_output/destination0_kor.mp3')
                     aigo_state = 2
+                elif("노래" in command):
+                    playsound.playsound('./tts_output/iloveyoubaby.mp3')
+                    aigo_state = 0
                 else : 
                     playsound.playsound('./tts_output/commandNotFound0_kor.mp3')
                     aigo_state = 0
@@ -179,7 +182,9 @@ def listen_print_loop(responses):
                 if(len(command) != 0):
                     aigo_destination_speech.speech_destination(command)
                     playsound.playsound('./tts_output/destination_speech0_kor.mp3')
-                    
+
+
+
                     aigo_state = 0
 
 

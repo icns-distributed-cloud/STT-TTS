@@ -1,5 +1,5 @@
 from google.cloud import texttospeech
-
+import playsound
 client = texttospeech.TextToSpeechClient()
 
 voice_eng = texttospeech.VoiceSelectionParams(
@@ -28,15 +28,16 @@ def makeFile(textList, *adder):
 
     for i, text in enumerate(textList):
         if type(text) == type(list()):
-            with open('tts_output/'+str(adder)+str(i)+'_eng.mp3','wb') as out:
-                out.write(exchange_eng(text[0]))
+            #with open('tts_output/'+str(adder)+str(i)+'_eng.mp3','wb') as out:
+            #    out.write(exchange_kor(text[0]))
             with open('tts_output/'+str(adder)+str(i)+'_kor.mp3','wb') as out:
-                out.write(exchange_eng(text[1]))
+                out.write(exchange_kor(text[0]))
         else:
             with open('tts_output/' + str(adder) + str(i) + '.mp3', 'wb') as out:
-                out.write(exchange_eng(text))
+                out.write(exchange_kor(text))
 
-location = ['안녕','in a clothing store','at a construction site']
-makeFile(location,'location')
-behavior = [['he is sitting arm in arm','안녕하세요 안녕 안녕']]
-makeFile(behavior,'behavior')
+#location = ['안녕','in a clothing store','at a construction site']
+#makeFile(location,'location')
+behavior = [['명령어가 존재하지 않습니다. 저를 다시 불러주세요.',]]
+makeFile(behavior,'commandNotFound')
+playsound.playsound('./tts_output/parden0_kor.mp3')

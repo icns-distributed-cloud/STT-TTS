@@ -1,31 +1,3 @@
-#!/usr/bin/env python
-
-# Copyright 2017 Google Inc. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-"""Google Cloud Speech API sample application using the streaming API.
-
-NOTE: This module requires the additional dependency `pyaudio`. To install
-using pip:
-
-    pip install pyaudio
-
-Example usage:
-    python transcribe_streaming_mic.py
-"""
-
-# [START speech_transcribe_streaming_mic]
 from __future__ import division
 
 import re
@@ -35,16 +7,11 @@ from google.cloud import speech
 
 import pyaudio
 from six.moves import queue
+import wave
 
-import playsound
-import aigo_destination_speech
-import aigo_destination_route
-import time
-import threading
 # Audio recording parameters
-RATE = 16000
+RATE = 24000
 CHUNK = int(RATE / 10)  # 100ms
-
 
 
 class MicrophoneStream(object):
@@ -57,8 +24,8 @@ class MicrophoneStream(object):
         # Create a thread-safe buffer of audio data
         self._buff = queue.Queue()
         self.closed = True
-        
-    def __enter__(self):                      #with 할 때 자동 실행
+
+    def __enter__(self):
         self._audio_interface = pyaudio.PyAudio()
         self._audio_stream = self._audio_interface.open(
             format=pyaudio.paInt16,
@@ -78,8 +45,6 @@ class MicrophoneStream(object):
 
         return self
 
-    
-
     def __exit__(self, type, value, traceback):
         self._audio_stream.stop_stream()
         self._audio_stream.close()
@@ -90,13 +55,16 @@ class MicrophoneStream(object):
         self._audio_interface.terminate()
 
     def _fill_buffer(self, in_data, frame_count, time_info, status_flags):
-        """Continuously collect data from the audio stream, into the buffer."""
-        if self.status == 0 :
+        if self.status == 0:
+            """Continuously collect data from the audio stream, into the buffer."""
             self._buff.put(in_data)
             return None, pyaudio.paContinue
         elif self.status == 1:
             self._buff.put(b'')
             return None, pyaudio.paContinue
+
+    def play(self, data):
+        self._audio_stream.write(data)
 
     def generator(self):
         while not self.closed:
@@ -117,30 +85,14 @@ class MicrophoneStream(object):
                     data.append(chunk)
                 except queue.Empty:
                     break
-
             yield b"".join(data)
 
 
-def listen_print_loop(responses, stream):
-    """Iterates through server responses and prints them.
+def load_guide(responses, stream):
+    
 
-    The responses passed is a generator that will block until a response
-    is provided by the server.
-
-    Each response may contain multiple results, and each result may contain
-    multiple alternatives; for details, see https://goo.gl/tjCPAU.  Here we
-    print only the transcription for the top alternative of the top result.
-
-    In this case, responses are provided for interim results as well. If the
-    response is an interim one, print a line feed at the end of it, to allow
-    the next result to overwrite it, until the response is a final one. For the
-    final one, print a newline to preserve the finalized transcription.
-    """
     num_chars_printed = 0
-    aigo_state = 0                         # state 1 : command waiting , state 2 : destination command waiting
     for response in responses:
-
-
         if not response.results:
             continue
 
@@ -168,44 +120,21 @@ def listen_print_loop(responses, stream):
             num_chars_printed = len(transcript)
 
         else:
-
             print(transcript + overwrite_chars)
             command = transcript + overwrite_chars
 
+            if ('길찾기' in command or '길 찾기' in command):
+                stream.status = 1
+                filename = 'speech/commandNotFound0_kor.wav'
+                wf = wave.open(filename, 'rb')
+                data = wf.readframes(1024)
 
-            print(len(command))
+                while data != b'':
+                    stream.play(data)
             
-            
-            if(aigo_state == 1):
-                stream.status = 1
-                if("길찾기" in command or "길 찾기" in command):
-                    playsound.playsound('./tts_output/destination0_kor.mp3')                    
-                    aigo_state = 2
-                elif("노래" in command):
-                    playsound.playsound('./tts_output/iloveyoubaby.mp3')                    
-                    aigo_state = 0
-                else : 
-                    playsound.playsound('./tts_output/commandNotFound0_kor.mp3')                    
-                    aigo_state = 0
-                stream.status = 0
-            
-            elif(aigo_state == 2):
-                stream.status = 1
-                if(len(command) != 0):
-                    aigo_destination_speech.speech_destination(command)
-                    playsound.playsound('./tts_output/destination_speech0_kor.mp3')
-                    aigo_destination_route.get_route(command)
-                    aigo_state = 0
+                    data = wf.readframes(1024)
                 stream.status = 0
 
-
-            if("아이고야" in command and aigo_state ==0):
-                stream.status = 1
-                playsound.playsound('./tts_output/parden0_kor.mp3')        # parden tts  and aigo has command waiting state                
-                aigo_state = 1
-                stream.status = 0
-
-            
             # Exit recognition if any of the transcribed phrases could be
             # one of our keywords.
             if re.search(r"\b(exit|quit)\b", transcript, re.I):
@@ -215,12 +144,12 @@ def listen_print_loop(responses, stream):
             num_chars_printed = 0
 
 
-def main():
-    # See http://g.co/cloud/speech/docs/languages
-    # for a list of supported languages.
-    language_code = "ko-KR"  # a BCP-47 language tag
 
-    client = speech.SpeechClient()
+def main():
+    language_code = "ko-KR"
+
+
+    client = speech.SpeechClient.from_service_account_file(filename='hong-key.json')
     config = speech.RecognitionConfig(
         encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
         sample_rate_hertz=RATE,
@@ -239,10 +168,9 @@ def main():
         )
 
         responses = client.streaming_recognize(streaming_config, requests)
+
         # Now, put the transcription responses to use.
-        listen_print_loop(responses, stream)
+        load_guide(responses, stream)
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
-# [END speech_transcribe_streaming_mic]

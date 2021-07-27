@@ -36,7 +36,7 @@ def receiver(q,stop):
     
     print('* receiver done')
 
-if __name__ == '__main__':
+def point_detect():
     q = Queue()
     stop = Queue()
     stop.put(0)

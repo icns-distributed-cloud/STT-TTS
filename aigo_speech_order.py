@@ -39,6 +39,7 @@ from six.moves import queue
 import playsound
 import aigo_destination_speech
 import aigo_destination_route
+import gpsdatasend
 import time
 import threading
 # Audio recording parameters
@@ -197,6 +198,7 @@ def listen_print_loop(responses, stream):
                     aigo_destination_route.get_route(command)
                     aigo_state = 0
                 stream.status = 0
+                gpsdatasend.point_detect()
 
 
             if("아이고야" in command and aigo_state ==0):

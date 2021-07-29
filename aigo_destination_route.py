@@ -1,10 +1,12 @@
+from posixpath import expanduser
 import requests
 import json
 import settings
 import currentgps
-
 def get_location(destination):
-    center_lon, center_lat = currentgps.get_gps()
+    
+    center_lon, center_lat = currentgps.get_gps()##  #currentgps.get_gps()
+    print(center_lon, center_lat)
     tmap_location_url = "https://apis.openapi.sk.com/tmap/pois?version=1&format=json&callback=result"
 
     rest_api_key = settings.get_apiKey('rest_api_key')
@@ -15,14 +17,15 @@ def get_location(destination):
         "searchKeyword" : searchKeyword,
         "resCoordType" : "WGS84GEO",    #EPSG3857
         "reqCoordType" : "WGS84GEO",    #WGS84GEO
-        "radius" : 1, #주변 반경 설정
+        "radius" : 2, #주변 반경 설정
         "searchtypCd" : "A", #A : 관련도순, R: 거리순
         "centerLon" : center_lon,    #경도             현재 위치 해야 됨
         "centerLat" : center_lat,    #위도
-        "count" : 10
+        "count" : 1
     }
-
+    
     res = requests.get(tmap_location_url, params=params)
+    print(res.text)
 
     response_dict = json.loads(res.text)
     searchPoiInfo = response_dict['searchPoiInfo']
@@ -43,7 +46,8 @@ def get_location(destination):
     return center_lon, center_lat, poi_Lon, poi_Lat
 
 def get_route(destination):
-    current_lon, current_lat, destination_lon, destination_lat = get_location(destination)
+    start_lon, start_lat, destination_lon, destination_lat = get_location(destination)
+
 
     tmap_route_url = "https://apis.openapi.sk.com/tmap/routes/pedestrian?version=1&format=json&callback=result"
 
@@ -51,8 +55,8 @@ def get_route(destination):
 
     data = {
         "appKey" : rest_api_key,
-        "startX" : current_lon,    #경도
-        "startY" : current_lat,    #위도
+        "startX" : start_lon,    #경도
+        "startY" : start_lat,    #위도
         "endX" : destination_lon,
         "endY" : destination_lat,
         "reqCoordType" : "WGS84GEO",
@@ -87,4 +91,7 @@ def get_route(destination):
                     a = i
                 elif route_type == 'Point':
                     point_file.write(f'{route_coordinates[0]}, {route_coordinates[1]}, {route_description}\n')
-                
+
+#get_route(' 스타벅스')
+#lon, lat = currentgps.get_gps()
+#print(lon,lat)

@@ -1,15 +1,14 @@
 
 from ublox_gps import UbloxGps
 import serial
-import threading
+
 # Can also use SPI here - import spidev
 # I2C is not supported
 
-port = serial.Serial('/dev/ttyACM0', baudrate=460800, timeout=1)
-gps = UbloxGps(port)
 
 def run():
-  
+  port = serial.Serial('/dev/ttyACM0', baudrate=460800, timeout=1)
+  gps = UbloxGps(port)
   try: 
     print("Listenting for UBX Messages.")
     while True:
@@ -21,25 +20,35 @@ def run():
   
   finally:
     port.close()
-'''
-if __name__ == '__main__':
-  run()
-'''
+
 def get_gps():
+  port = serial.Serial('/dev/ttyACM0', baudrate=460800, timeout=1)
+  gps = UbloxGps(port)
+  global current_lat
+  global current_lon
   try:
-    try: 
+    try:
       coords = gps.geo_coords()
       current_lon = coords.lon
       current_lat = coords.lat
-      print(current_lon, current_lat)
-    except (ValueError, IOError) as err:
+      #print(current_lon, current_lat)
+    except (ValueError, IOError)as err:
       print(err)
   finally:
     port.close()
-  return str(current_lon), str(current_lat)
+  
+  return current_lon, current_lat
 
-
- 
+#run()
+#lon, lat = get_gps()
+#print(lon,lat)
+    #except (ValueError, IOError) as err:
+      #print(err)
+  #finally:
+    #port.close()
+  #return current_lon, current_lat#127.076779433 , 37.2463380449 
+#a,b = get_gps()
+#print(a,b)
 # def continuous_get_gps():
 #   # try:
 #   try: 

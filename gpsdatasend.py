@@ -15,7 +15,7 @@ def sender(q,stop):
                 print(coords.lon, coords.lat)
                 gps_data = [coords.lon, coords.lat]
             except (ValueError, IOError) as err:
-                print(err)
+                print(err) 
 
             if(point_check == 1):
                 currentline = points.readline()

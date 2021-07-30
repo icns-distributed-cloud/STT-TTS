@@ -43,6 +43,11 @@ def speech_destination(input_text):
     behavior = [[speech_text]]
     makeFile(behavior, 'destination_speech')
 
+def speech_route_information(input_text):
+    speech_text = input_text
+    behavior = [[speech_text]]
+    makeFile(behavior, 'route_information')
+
 #location = ['안녕','in a clothing store','at a construction site']
 #makeFile(location,'location')
 #behavior = [['명령어가 존재하지 않습니다. 저를 다시 불러주세요.',]]

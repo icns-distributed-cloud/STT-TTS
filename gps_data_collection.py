@@ -11,13 +11,13 @@ def run():
   
   try: 
     print("Listenting for UBX Messages.")
-    with open('gps_data.txt','w') as file:
+    with open('gps_data_window.txt','w') as file:
         i=0
         while True:
             try: 
                 coords = gps.geo_coords()
                 print(coords.lon, coords.lat)
-                if(i == 5) :
+                if(i == 3) :
                     file.write(f'{coords.lon} {coords.lat}\n')
                     i = 0
                 else : i+=1

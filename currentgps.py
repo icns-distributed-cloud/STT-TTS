@@ -39,6 +39,7 @@ def get_gps():
   
   return current_lon, current_lat
 
+#
 #run()
 #lon, lat = get_gps()
 #print(lon,lat)

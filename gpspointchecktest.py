@@ -1,12 +1,11 @@
-import time
 import threading
-from queue import Queue
 from ublox_gps import UbloxGps
 import serial
 import math
 import aigo_destination_speech
 import pyaudio  
-import wave  
+import wave
+import playsound  
 
 def playInformationSound():
     chunk = 1024  
@@ -56,7 +55,7 @@ def sender():
             route_info = splitline[2]
 
             PTCdistance = math.sqrt((point_lon-current_location_lon)**2 + (point_lat-current_location_lat)**2)
-            if (PTCdistance<=0.0001):
+            if (PTCdistance<=0.00002):
                 aigo_destination_speech.speech_route_information(route_info)
                 t2 = threading.Thread(target=playInformationSound)
                 t2.start()
@@ -66,7 +65,7 @@ def sender():
     port.close()
 
 
-
+playsound.playsound('./tts_output/destination_speech0_kor.mp3')
 t1 = threading.Thread(target=sender)
 t1.start()
 

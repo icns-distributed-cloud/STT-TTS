@@ -1,11 +1,11 @@
 
-from ublox_gps import UbloxGps
+#from ublox_gps import UbloxGps
 import serial
-
+from ublox_gps import UbloxGps
 # Can also use SPI here - import spidev
 # I2C is not supported
 
-
+'''
 def run():
   port = serial.Serial('/dev/ttyACM0', baudrate=460800, timeout=1)
   gps = UbloxGps(port)
@@ -20,12 +20,10 @@ def run():
   
   finally:
     port.close()
-
+'''
 def get_gps():
   port = serial.Serial('/dev/ttyACM0', baudrate=460800, timeout=1)
   gps = UbloxGps(port)
-  global current_lat
-  global current_lon
   try:
     try:
       coords = gps.geo_coords()
@@ -40,7 +38,7 @@ def get_gps():
   return current_lon, current_lat
 
 #
-#run()
+
 #lon, lat = get_gps()
 #print(lon,lat)
     #except (ValueError, IOError) as err:

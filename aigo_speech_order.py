@@ -38,11 +38,17 @@ from six.moves import queue
 
 import playsound
 import aigo_destination_speech
+import aigo_destination_route
+import threading
 
+from ublox_gps import UbloxGps
+import serial
+import math
+import wave
 # Audio recording parameters
 RATE = 16000
 CHUNK = int(RATE / 10)  # 100ms
-
+#lock = threading.Lock()
 
 class MicrophoneStream(object):
     """Opens a recording stream as a generator yielding the audio chunks."""
@@ -50,12 +56,12 @@ class MicrophoneStream(object):
     def __init__(self, rate, chunk):
         self._rate = rate
         self._chunk = chunk
-
+        self.status = 0
         # Create a thread-safe buffer of audio data
         self._buff = queue.Queue()
         self.closed = True
-
-    def __enter__(self):
+        
+    def __enter__(self):                      #with 할 때 자동 실행
         self._audio_interface = pyaudio.PyAudio()
         self._audio_stream = self._audio_interface.open(
             format=pyaudio.paInt16,
@@ -75,6 +81,8 @@ class MicrophoneStream(object):
 
         return self
 
+    
+
     def __exit__(self, type, value, traceback):
         self._audio_stream.stop_stream()
         self._audio_stream.close()
@@ -86,8 +94,12 @@ class MicrophoneStream(object):
 
     def _fill_buffer(self, in_data, frame_count, time_info, status_flags):
         """Continuously collect data from the audio stream, into the buffer."""
-        self._buff.put(in_data)
-        return None, pyaudio.paContinue
+        if self.status == 0 :
+            self._buff.put(in_data)
+            return None, pyaudio.paContinue
+        elif self.status == 1:
+            self._buff.put(b'')
+            return None, pyaudio.paContinue
 
     def generator(self):
         while not self.closed:
@@ -112,7 +124,72 @@ class MicrophoneStream(object):
             yield b"".join(data)
 
 
-def listen_print_loop(responses):
+# def gps_thread(command):
+#     lock.acquire()
+#     try:
+#         aigo_destination_route.get_route(command)
+#     finally:
+#         lock.release()
+
+def playInformationSound():
+    chunk = 1024  
+    path = 'tts_output/route_information0_kor.wav'
+    with wave.open(path, 'rb') as f:
+        p = pyaudio.PyAudio()  
+        stream = p.open(format = p.get_format_from_width(f.getsampwidth()),  
+                        channels = f.getnchannels(),  
+                        rate = f.getframerate(),  
+                        output = True)
+                        
+        data = f.readframes(chunk)  
+        while data:  
+            stream.write(data)  
+            data = f.readframes(chunk)  
+
+        stream.stop_stream()  
+        stream.close()  
+
+        p.terminate()
+
+def sender():
+    port = serial.Serial('/dev/ttyACM0', baudrate=460800, timeout=1)
+    gps = UbloxGps(port)
+    point_check = 0
+    with open('points.txt', 'r') as points:
+        currentline = points.readline()
+        splitline = currentline.split(',')
+        while True:
+            try: 
+                coords = gps.geo_coords()
+                print(coords.lon, coords.lat)
+                current_location_lon = coords.lon
+                current_location_lat = coords.lat
+            except (ValueError, IOError) as err:
+                print(err) 
+
+            if(point_check == 1):
+                currentline = points.readline()
+                if(currentline == ''):
+                    break
+                splitline = currentline.split(',')
+                point_check = 0
+
+            point_lon = float(splitline[0])
+            point_lat = float(splitline[1])
+            route_info = splitline[2]
+
+            PTCdistance = math.sqrt((point_lon-current_location_lon)**2 + (point_lat-current_location_lat)**2)
+            if (PTCdistance<=0.00002):
+                aigo_destination_speech.speech_route_information(route_info)
+                t2 = threading.Thread(target=playInformationSound)
+                t2.start()
+                point_check = 1
+            
+
+    port.close()
+
+
+def listen_print_loop(responses, stream):
     """Iterates through server responses and prints them.
 
     The responses passed is a generator that will block until a response
@@ -129,6 +206,7 @@ def listen_print_loop(responses):
     """
     num_chars_printed = 0
     aigo_state = 0                         # state 1 : command waiting , state 2 : destination command waiting
+    i = 0
     for response in responses:
 
 
@@ -160,38 +238,51 @@ def listen_print_loop(responses):
 
         else:
 
+            #print(transcript + overwrite_chars)
+            #command = transcript + overwrite_chars
+            
             print(transcript + overwrite_chars)
             command = transcript + overwrite_chars
 
-
-            print(len(command))
+            #print(len(command))
             
             
             if(aigo_state == 1):
+                stream.status = 1
                 if("길찾기" in command or "길 찾기" in command):
-                    playsound.playsound('./tts_output/destination0_kor.mp3')
+                    playsound.playsound('./tts_output/destination0_kor.mp3')   
                     aigo_state = 2
                 elif("노래" in command):
-                    playsound.playsound('./tts_output/iloveyoubaby.mp3')
+                    playsound.playsound('./tts_output/iloveyoubaby.mp3')                    
                     aigo_state = 0
                 else : 
-                    playsound.playsound('./tts_output/commandNotFound0_kor.mp3')
+                    playsound.playsound('./tts_output/commandNotFound0_kor.mp3')                    
                     aigo_state = 0
+                stream.status = 0
             
             elif(aigo_state == 2):
-                if(len(command) != 0):
-                    aigo_destination_speech.speech_destination(command)
-                    playsound.playsound('./tts_output/destination_speech0_kor.mp3')
+                #my_thread = threading.Thread(target=gps_thread, args=(command,))
+                #my_thread.start()
+                aigo_destination_route.get_route(command)
+                aigo_destination_speech.speech_destination(command)
+                stream.status = 1
+                playsound.playsound('./tts_output/destination_speech0_kor.wav')
+                t1 = threading.Thread(target=sender)
+                t1.start()
+                stream.status = 0    
+                aigo_state = 0
+                
+                
+                #gpsdatasend.point_detect()
 
 
-
-                    aigo_state = 0
-
-
-            if("아이고야" in command and aigo_state ==0):
-                playsound.playsound('./tts_output/parden0_kor.mp3')        # parden tts  and aigo has command waiting state.
+            elif("아이고야" in command and aigo_state ==0):
+                stream.status = 1
+                playsound.playsound('./tts_output/parden0_kor.mp3')        # parden tts  and aigo has command waiting state                
                 aigo_state = 1
+                stream.status = 0
 
+            else : continue
             # Exit recognition if any of the transcribed phrases could be
             # one of our keywords.
             if re.search(r"\b(exit|quit)\b", transcript, re.I):
@@ -199,6 +290,7 @@ def listen_print_loop(responses):
                 break
 
             num_chars_printed = 0
+
 
 
 def main():
@@ -225,9 +317,8 @@ def main():
         )
 
         responses = client.streaming_recognize(streaming_config, requests)
-
         # Now, put the transcription responses to use.
-        listen_print_loop(responses)
+        listen_print_loop(responses, stream)
 
 
 if __name__ == "__main__":

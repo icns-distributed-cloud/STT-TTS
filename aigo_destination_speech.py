@@ -12,7 +12,7 @@ voice_kor = texttospeech.VoiceSelectionParams(
     ssml_gender=texttospeech.SsmlVoiceGender.NEUTRAL)
 
 audio_config = texttospeech.AudioConfig(
-    audio_encoding=texttospeech.AudioEncoding.MP3)
+    audio_encoding=texttospeech.AudioEncoding.LINEAR16)
 
 def exchange_eng(input_text):
     synthesis_input = texttospeech.SynthesisInput(text=input_text)
@@ -32,16 +32,21 @@ def makeFile(textList, *adder):
         if type(text) == type(list()):
             #with open('tts_output/'+str(adder)+str(i)+'_eng.mp3','wb') as out:
             #    out.write(exchange_kor(text[0]))
-            with open('tts_output/'+str(adder)+str(i)+'_kor.mp3','wb') as out:
+            with open('tts_output/'+str(adder)+str(i)+'_kor.wav','wb') as out:
                 out.write(exchange_kor(text[0]))
         else:
-            with open('tts_output/' + str(adder) + str(i) + '.mp3', 'wb') as out:
+            with open('tts_output/' + str(adder) + str(i) + '.wav', 'wb') as out:
                 out.write(exchange_kor(text))
 
 def speech_destination(input_text):
     speech_text = input_text + "까지 안내를 시작합니다"
     behavior = [[speech_text]]
     makeFile(behavior, 'destination_speech')
+
+def speech_route_information(input_text):
+    speech_text = input_text
+    behavior = [[speech_text]]
+    makeFile(behavior, 'route_information')
 
 #location = ['안녕','in a clothing store','at a construction site']
 #makeFile(location,'location')

@@ -38,5 +38,5 @@ def makeFile(textList, *adder):
 
 #location = ['안녕','in a clothing store','at a construction site']
 #makeFile(location,'location')
-behavior = [['텅텅 빈 인생에 몸서리친 어제의 나는 오늘의 나와 동명이인',]]
+behavior = [['안녕안녕',]]
 makeFile(behavior,'test')

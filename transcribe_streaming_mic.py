@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright 2017 Google Inc. All Rights Reserved.
 #
@@ -35,6 +35,8 @@ from google.cloud import speech
 
 import pyaudio
 from six.moves import queue
+import rospy
+import threading
 
 # Audio recording parameters
 RATE = 16000
@@ -45,12 +47,16 @@ class MicrophoneStream(object):
     """Opens a recording stream as a generator yielding the audio chunks."""
 
     def __init__(self, rate, chunk):
+        #rospy.init_node('mic_test', anonymous=True)
         self._rate = rate
         self._chunk = chunk
 
         # Create a thread-safe buffer of audio data
         self._buff = queue.Queue()
         self.closed = True
+
+    #def run(self):
+     #   rospy.spin()
 
     def __enter__(self):
         self._audio_interface = pyaudio.PyAudio()
@@ -179,8 +185,10 @@ def main():
     streaming_config = speech.StreamingRecognitionConfig(
         config=config, interim_results=True
     )
-
+    
+    
     with MicrophoneStream(RATE, CHUNK) as stream:
+      #  stream.run()
         audio_generator = stream.generator()
         requests = (
             speech.StreamingRecognizeRequest(audio_content=content)
@@ -194,5 +202,6 @@ def main():
 
 
 if __name__ == "__main__":
+    
     main()
 # [END speech_transcribe_streaming_mic]

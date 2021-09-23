@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 # Copyright 2017 Google Inc. All Rights Reserved.
 #
@@ -27,28 +27,132 @@ Example usage:
 
 # [START speech_transcribe_streaming_mic]
 from __future__ import division
-
 import re
 import sys
-
 from google.cloud import speech
-
 import pyaudio
 from six.moves import queue
-
+from posixpath import expanduser
+import requests
+import json
+import settings
 import playsound
 import aigo_destination_speech
-import aigo_destination_route
 import threading
-
-from ublox_gps import UbloxGps
-import serial
+# import time, rospy, re
+# from sensor_msgs.msg import NavSatFix
+#from ublox_gps import UbloxGps
+#import serial
 import math
 import wave
+import paho.mqtt.client as paho
+import os
 # Audio recording parameters
 RATE = 16000
 CHUNK = int(RATE / 10)  # 100ms
 #lock = threading.Lock()
+
+def on_publish(mosq, obj, mid):
+    pass
+
+def on_message(mosq, obj, msg):
+    #print("%-20s %d %s" % (msg.topic, msg.qos, msg.payload))
+    global mqtt_lon,mqtt_lat
+
+    if(msg.topic == "gps/current_lon"):
+        mqtt_lon = float(msg.payload.decode('utf-8'))
+    elif(msg.topic == "gps/current_lat"):
+        mqtt_lat = float(msg.payload.decode('utf-8'))
+    mosq.publish('pong', 'ack', 0)
+
+
+def get_location(destination):
+    
+    center_lon, center_lat = mqtt_lon,mqtt_lat##  #currentgps.get_gps()
+    print(center_lon, center_lat)
+    tmap_location_url = "https://apis.openapi.sk.com/tmap/pois?version=1&format=json&callback=result"
+
+    rest_api_key = settings.get_apiKey('rest_api_key')
+
+    searchKeyword = destination               #일단 스타벅스 경희대국제캠퍼스점 하나로 코드 작성
+    params = {
+        "appKey" : rest_api_key,
+        "searchKeyword" : searchKeyword,
+        "resCoordType" : "WGS84GEO",    #EPSG3857
+        "reqCoordType" : "WGS84GEO",    #WGS84GEO
+        "radius" : 2, #주변 반경 설정
+        "searchtypCd" : "A", #A : 관련도순, R: 거리순
+        "centerLon" : center_lon,    #경도             현재 위치 해야 됨
+        "centerLat" : center_lat,    #위도
+        "count" : 1
+    }
+    
+    res = requests.get(tmap_location_url, params=params)
+    print(res.text)
+
+    response_dict = json.loads(res.text)
+    searchPoiInfo = response_dict['searchPoiInfo']
+    location_pois = searchPoiInfo['pois']
+    location_poi = location_pois['poi']
+    #print(len(location_poi))
+    #print(location_poi)
+    for i in location_poi:
+        poi_name = i['name']
+        poi_Lon = i['frontLon']
+        poi_Lat = i['frontLat']
+        poi_radius = i['radius']
+     #  print(f'poi_name = {poi_name}')
+     #  print(f'poi_Lon = {poi_Lon}')
+     #  print(f'poi_Lat = {poi_Lat}')
+     #  print(f'poi_radius = {poi_radius}\n')
+
+    return center_lon, center_lat, poi_Lon, poi_Lat
+
+def get_route(destination):
+    start_lon, start_lat, destination_lon, destination_lat = get_location(destination)
+
+
+    tmap_route_url = "https://apis.openapi.sk.com/tmap/routes/pedestrian?version=1&format=json&callback=result"
+
+    rest_api_key = settings.get_apiKey('rest_api_key')
+
+    data = {
+        "appKey" : rest_api_key,
+        "startX" : start_lon,    #경도
+        "startY" : start_lat,    #위도
+        "endX" : destination_lon,
+        "endY" : destination_lat,
+        "reqCoordType" : "WGS84GEO",
+        "resCoordType" : "WGS84GEO",
+        "startName" : "start",
+        "endName" : "end",
+        "passList" : ""
+    }
+
+    res = requests.post(tmap_route_url, data=data)
+
+
+    response_dict = json.loads(res.text)
+    a = []
+    with open('route.txt', 'w') as route_file:
+        for i in response_dict['features']:
+            route_geometry = i['geometry']
+            route_properties = i['properties']
+            route_type = route_geometry['type']
+            route_coordinates = route_geometry['coordinates']
+            route_description = route_properties['description']
+            print(f'route_type = {route_type}')
+            print(f'route_coordinates = {route_coordinates}')
+            print(f'route_description = {route_description}\n')
+
+            if route_type == 'LineString':
+                for i in route_coordinates:
+                    if a == i:
+                        continue
+                    else : route_file.write(f'l, {i[0]}, {i[1]} \n')
+                a = i
+            elif route_type == 'Point':
+                route_file.write(f'p, {route_coordinates[0]}, {route_coordinates[1]}, {route_description}\n')
 
 class MicrophoneStream(object):
     """Opens a recording stream as a generator yielding the audio chunks."""
@@ -131,6 +235,7 @@ class MicrophoneStream(object):
 #     finally:
 #         lock.release()
 
+'''
 def playInformationSound():
     chunk = 1024  
     path = 'tts_output/route_information0_kor.wav'
@@ -150,44 +255,89 @@ def playInformationSound():
         stream.close()  
 
         p.terminate()
+'''
+# def sender():
+
+#     point_check = 0 
+#     with open('route.txt', 'r') as points:
+        
+#         while True:
+#             currentline = points.readline()
+#             splitline = currentline.split(',')
+#             if splitline[0] == 'p':
+#                 current_location_lon,current_location_lat = aigo_call_coord()
+#                 if(point_check == 0):
+#                     point_check = 1
+#                     point_lon = float(splitline[1])
+#                     point_lat = float(splitline[2])
+#                     route_info = splitline[3]
+#                     aigo_pub_gps(point_lat, point_lon)
+#                 PTCdistance = math.sqrt((point_lon-current_location_lon)**2 + (point_lat-current_location_lat)**2)
+#                 if (PTCdistance<=0.00002):
+#                     aigo_destination_speech.speech_route_information(route_info)
+#                     playsound.playsound('./tts_output/route_information0_kor.wav')
+#                     # t2 = threading.Thread(target=playInformationSound)
+#                     # t2.start()
+#                     point_check = 1
+#             elif
+#             elif(currentline == ''):
+#                         break
+#             else : continue
+            
+
+    #port.close()
+
+
 
 def sender():
-    port = serial.Serial('/dev/ttyACM0', baudrate=460800, timeout=1)
-    gps = UbloxGps(port)
+
     point_check = 0
-    with open('points.txt', 'r') as points:
+    with open('route.txt', 'r') as points:
         currentline = points.readline()
         splitline = currentline.split(',')
         while True:
-            try: 
-                coords = gps.geo_coords()
-                print(coords.lon, coords.lat)
-                current_location_lon = coords.lon
-                current_location_lat = coords.lat
-            except (ValueError, IOError) as err:
-                print(err) 
 
+            current_location_lon,current_location_lat = mqtt_lon, mqtt_lat
+            print(current_location_lon,current_location_lat)
             if(point_check == 1):
                 currentline = points.readline()
                 if(currentline == ''):
                     break
                 splitline = currentline.split(',')
+                if(splitline[0] == 'l'):
+                    # aigo_pub_gps(splitline[2], splitline[1])
+                    continue
+                # aigo_pub_gps(splitline[2], splitline[1])
                 point_check = 0
 
-            point_lon = float(splitline[0])
-            point_lat = float(splitline[1])
-            route_info = splitline[2]
+
+            point_lon = float(splitline[1])
+            point_lat = float(splitline[2])
+            
+            route_info = splitline[3]
 
             PTCdistance = math.sqrt((point_lon-current_location_lon)**2 + (point_lat-current_location_lat)**2)
             if (PTCdistance<=0.00002):
                 aigo_destination_speech.speech_route_information(route_info)
-                t2 = threading.Thread(target=playInformationSound)
-                t2.start()
+                playsound.playsound('./tts_output/route_information0_kor.wav')
                 point_check = 1
-            
 
-    port.close()
 
+# def gps_callback(data):
+#     global aigo_long
+#     global aigo_lat
+#     aigo_long = data.longitude
+#     aigo_lat = data.latitude
+#     print(aigo_long, aigo_lat)
+
+# def aigo_pub_gps(lat, long):
+#     gps_goal_msg = NavSatFix() # message type
+#     gps_goal_msg.longitude = long
+#     gps_goal_msg.latitude = lat
+#     gps_goal_pub.publish(gps_goal_msg)
+    
+# def aigo_call_coord():
+#     return aigo_long, aigo_lat
 
 def listen_print_loop(responses, stream):
     """Iterates through server responses and prints them.
@@ -263,12 +413,13 @@ def listen_print_loop(responses, stream):
             elif(aigo_state == 2):
                 #my_thread = threading.Thread(target=gps_thread, args=(command,))
                 #my_thread.start()
-                aigo_destination_route.get_route(command)
+                get_route(command)
                 aigo_destination_speech.speech_destination(command)
                 stream.status = 1
                 playsound.playsound('./tts_output/destination_speech0_kor.wav')
                 t1 = threading.Thread(target=sender)
                 t1.start()
+                os.system("rosrun aigo_stt_tts aigo_ros_publisher.py")
                 stream.status = 0    
                 aigo_state = 0
                 
@@ -309,7 +460,10 @@ def main():
         config=config, interim_results=True
     )
 
+    
+
     with MicrophoneStream(RATE, CHUNK) as stream:
+        
         audio_generator = stream.generator()
         requests = (
             speech.StreamingRecognizeRequest(audio_content=content)
@@ -318,9 +472,33 @@ def main():
 
         responses = client.streaming_recognize(streaming_config, requests)
         # Now, put the transcription responses to use.
+        
         listen_print_loop(responses, stream)
 
+# def ros_spin():
+#     while True:
+        
+def gpsClient():
+    client = paho.Client()
+    client.on_message = on_message
+    client.on_publish = on_publish
 
+    client.connect("127.0.0.1", 1883, 60)
+
+    client.subscribe("gps/current_lon", 0)
+    client.subscribe("gps/current_lat", 0)
+    #client.subscribe("adult/#", 0)
+    while True:
+        if(client.loop()==0):
+            pass
+        else: break
 if __name__ == "__main__":
+    #rospy.init_node('aigo_voice') # initialize node
+    #gps_goal_pub = rospy.Publisher('gps_goal_fix', NavSatFix, queue_size = 1)
+    #current_gps_sub = rospy.Subscriber('fix', NavSatFix, gps_callback)
+    
+    t1 = threading.Thread(target=gpsClient)
+    t1.start()
     main()
+    
 # [END speech_transcribe_streaming_mic]

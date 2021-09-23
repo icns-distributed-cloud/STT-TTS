@@ -1,7 +1,8 @@
-
+#!/usr/env/bin python3
 #from ublox_gps import UbloxGps
-import serial
-from ublox_gps import UbloxGps
+#import serial
+import aigo_ros_bridge
+#from ublox_gps import UbloxGps
 # Can also use SPI here - import spidev
 # I2C is not supported
 
@@ -22,18 +23,7 @@ def run():
     port.close()
 '''
 def get_gps():
-  port = serial.Serial('/dev/ttyACM0', baudrate=460800, timeout=1)
-  gps = UbloxGps(port)
-  try:
-    try:
-      coords = gps.geo_coords()
-      current_lon = coords.lon
-      current_lat = coords.lat
-      #print(current_lon, current_lat)
-    except (ValueError, IOError)as err:
-      print(err)
-  finally:
-    port.close()
+  current_lon,current_lat = aigo_ros_bridge.aigo_call_coord()
   
   return current_lon, current_lat
 

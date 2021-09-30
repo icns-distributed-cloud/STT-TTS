@@ -298,7 +298,7 @@ def sender():
         while True:
 
             current_location_lon,current_location_lat = mqtt_lon, mqtt_lat
-            print(current_location_lon,current_location_lat)
+#            print(current_location_lon,current_location_lat)
             if(point_check == 1):
                 currentline = points.readline()
                 if(currentline == ''):

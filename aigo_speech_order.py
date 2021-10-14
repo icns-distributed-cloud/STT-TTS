@@ -46,7 +46,9 @@ import threading
 import math
 import wave
 import paho.mqtt.client as paho
+import paho.mqtt.publish as publish
 import os
+
 # Audio recording parameters
 RATE = 16000
 CHUNK = int(RATE / 10)  # 100ms
@@ -57,12 +59,17 @@ def on_publish(mosq, obj, mid):
 
 def on_message(mosq, obj, msg):
     #print("%-20s %d %s" % (msg.topic, msg.qos, msg.payload))
-    global mqtt_lon,mqtt_lat
+    global mqtt_lon,mqtt_lat,mqtt_nodetect,mqtt_detect
 
     if(msg.topic == "gps/current_lon"):
         mqtt_lon = float(msg.payload.decode('utf-8'))
     elif(msg.topic == "gps/current_lat"):
         mqtt_lat = float(msg.payload.decode('utf-8'))
+    elif(msg.topic == "/nodetect/tl"):
+        mqtt_nodetect = float(msg.payload.decode('utf-8'))
+    elif(msg.topic == "/detect/car"):
+        mqtt_detect = float(msg.payload.decode('utf-8'))
+
     mosq.publish('pong', 'ack', 0)
 
 
@@ -292,7 +299,7 @@ def playInformationSound():
 def sender():
 
     point_check = 0
-    with open('route.txt', 'r') as points:
+    with open('route_ros.txt', 'r') as points:
         currentline = points.readline()
         splitline = currentline.split(',')
         while True:
@@ -316,10 +323,23 @@ def sender():
             
             route_info = splitline[3]
 
+            if(mqtt_nodetect == 1):
+                playsound.playsound('./tts_output/light_none_speech0_kor.wav')
+                mqtt_nodetect = 0
+                publish.single(topic="/endinform/tts", payload="1", hostname = "163.180.117.43")
+
+            if(mqtt_detect == 1):
+                playsound.playsound('./tts_output/no_car_speech0_kor.wav')
+                mqtt_detect = 0
+
+
             PTCdistance = math.sqrt((point_lon-current_location_lon)**2 + (point_lat-current_location_lat)**2)
             if (PTCdistance<=0.00002):
+
                 aigo_destination_speech.speech_route_information(route_info)
                 playsound.playsound('./tts_output/route_information0_kor.wav')
+                if rout_info.find("횡단보도") >-1:
+                    playsound.playsound('./tts_output/crosswalk_speech0_kor.wav')
                 point_check = 1
 
 
@@ -480,15 +500,24 @@ def main():
         
 def gpsClient():
     client = paho.Client()
+    client2 = paho.Client()
     client.on_message = on_message
     client.on_publish = on_publish
+    client2.on_message = on_message
+    client2.on_publish = on_publish
 
     client.connect("127.0.0.1", 1883, 60)
-
+    client2.connect("163.180.117.43", 1883, 60)
     client.subscribe("gps/current_lon", 0)
     client.subscribe("gps/current_lat", 0)
+    client2.subscribe("/nodetect/tl", 0)
+    client2.subscribe("/detect/car", 0)
     #client.subscribe("adult/#", 0)
     while True:
+        if(client2.loop()==0):
+            pass
+        else: break
+
         if(client.loop()==0):
             pass
         else: break

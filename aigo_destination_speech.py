@@ -49,6 +49,12 @@ def speech_route_information(input_text):
     behavior = [[speech_text]]
     makeFile(behavior, 'route_information')
 
+def speech_another():
+    behavior = [["감지된 차량이 없습니다. 건너가도 좋습니다"]]
+    makeFile(behavior, "no_car_speech")
+
+#speech_another()
+#playsound.playsound('./tts_output/no_car_speech0_kor.wav')
 #location = ['안녕','in a clothing store','at a construction site']
 #makeFile(location,'location')
 #behavior = [['명령어가 존재하지 않습니다. 저를 다시 불러주세요.',]]

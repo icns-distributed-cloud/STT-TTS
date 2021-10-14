@@ -29,7 +29,7 @@ def on_publish(mosq, obj, mid):
 
 def on_message(mosq, obj, msg):
     #print("%-20s %d %s" % (msg.topic, msg.qos, msg.payload))
-    global car, tl, cw
+    global car, tl, cw, goal
     
     if(msg.topic == "/detect/car"):
         car = int(msg.payload.decode('utf-8'))
@@ -39,15 +39,21 @@ def on_message(mosq, obj, msg):
 
     elif(msg.topic == "/detect/cw"):
         cw = int(msg.payload.decode('utf-8'))
+    elif(msg.topic == "/goal"):
+        goal = int(msg.payload.decode('utf-8'))
     mosq.publish('pong', 'ack', 0)
 
 def wait_for_signal():
     global car, tl, cw
     while (client.loop()==0):
-        if (car == 1 and tl ==1):
+        if (car == 1):
             rospy.loginfo("wait_for_signal loop break succeed")
             cw = 0
             car = 0
+            break
+        if (tl == 1):
+            rospy.loginfo("tl = 1")
+            cw = 0
             tl = 0
             break
 
@@ -59,9 +65,11 @@ def aigo_pub_gps(lat, long):
 
 if __name__ == '__main__':
     global point_check
-    global car, tl, cw
+    global car, tl, cw, goal
     car = 0
     tl = 0
+    goal = 0
+    cw = 0
     rospy.init_node('aigo_ros_publisher') # initialize node
     gps_goal_pub = rospy.Publisher('gps_goal_fix', NavSatFix, queue_size = 1)
     rospy.loginfo("Connecting to move_base...")
@@ -77,6 +85,7 @@ if __name__ == '__main__':
 
     client.subscribe("/detect/car", 0)
     client.subscribe("/detect/tl", 0)
+    client.subscribe("/goal")
 #    edgeClient()
     #t1 = threading.Thread(target=edgeClient)
     #t1.start()
@@ -92,28 +101,43 @@ if __name__ == '__main__':
         print(splitline[2], splitline[1])
         aigo_pub_gps(float(splitline[2]), float(splitline[1]))
         rospy.loginfo("Published First waypoint.")
+        #print(move_base.get_state())
+        
+        print(move_base.get_goal_status_text())
         if(splitline[0] == 'p'):
             if(splitline[3].find("횡단보도") > 0):
                 cw = 1
         time.sleep(5.0)
         while not rospy.is_shutdown():
-
+            print(point_check)
             if(point_check == 1):
                 point_check = 0
                 currentline = points.readline()
                 if(currentline == ''):
                     break
                 splitline = currentline.split(',')
-                aigo_pub_gps(splitline[2], splitline[1])
+                print(splitline[2])
+                print(splitline[1])
+                aigo_pub_gps(float(splitline[2]), float(splitline[1]))
                 rospy.loginfo("Published Next waypoint.")
-            move_base.wait_for_result()
-            if(move_base.get_state()==GoalStatus.SUCCEEDED):
-                if(cw == 1):
-                    publish.single(topic="/detect/cw", payload="1", hostname="163.180.117.43")
-                    rospy.loginfo("wait_for_signal loop start")
-                    wait_for_signal()
-                point_check = 1
-            #time.sleep(0.1)
+                if(splitline[0]=='p'):
+                    if(splitline[3].find("횡단보도")>0):
+                        cw=1
+            #move_base.wait_for_result()
+            #print(GoalStatus.SUCCEEDED)
+            #if(move_base.get_state()==GoalStatus.SUCCEEDED):
+            while(client.loop()==0):
+             #   print(goal)
+                if(goal == 1):
+                    goal = 0
+                    point_check = 1
+                    break
+
+            if(cw == 1):
+                publish.single(topic="/detect/cw", payload="1", hostname="163.180.117.43")
+                rospy.loginfo("wait_for_signal loop start")
+                wait_for_signal() 
+            time.sleep(0.1)
         rospy.loginfo("Finish")
             
 

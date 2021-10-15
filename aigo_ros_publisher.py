@@ -45,16 +45,21 @@ def on_message(mosq, obj, msg):
 
 def wait_for_signal():
     global car, tl, cw
-    while (client.loop()==0):
-        if (car == 1):
-            rospy.loginfo("wait_for_signal loop break succeed")
-            cw = 0
-            car = 0
-            break
-        if (tl == 1):
-            rospy.loginfo("tl = 1")
-            cw = 0
-            tl = 0
+    while True:
+        try:
+            if (client.loop() == 0):
+                pass
+            if (car == 1):
+                rospy.loginfo("wait_for_signal loop break succeed")
+                cw = 0
+                car = 0
+                break
+            if (tl == 1):
+                rospy.loginfo("tl = 1")
+                cw = 0
+                tl = 0
+                break
+        except KeyboardInterrupt:
             break
 
 def aigo_pub_gps(lat, long):
@@ -63,6 +68,12 @@ def aigo_pub_gps(lat, long):
     gps_goal_msg.latitude = lat
     gps_goal_pub.publish(gps_goal_msg)
 
+def aigo_pub_gps_angle(lat, long):
+    gps_goal_msg = NavSatFix() # message type
+    gps_goal_msg.longitude = long
+    gps_goal_msg.latitude = lat
+    gps_goal_angle_pub.publish(gps_goal_msg)
+
 if __name__ == '__main__':
     global point_check
     global car, tl, cw, goal
@@ -70,8 +81,10 @@ if __name__ == '__main__':
     tl = 0
     goal = 0
     cw = 0
+    cw_pass = 0
     rospy.init_node('aigo_ros_publisher') # initialize node
     gps_goal_pub = rospy.Publisher('gps_goal_fix', NavSatFix, queue_size = 1)
+    gps_goal_angle_pub = rospy.Publisher('gps_goal_angle', NavSatFix, queue_size = 1)
     rospy.loginfo("Connecting to move_base...")
     move_base = actionlib.SimpleActionClient('move_base', MoveBaseAction)
     move_base.wait_for_server()
@@ -110,7 +123,15 @@ if __name__ == '__main__':
         time.sleep(5.0)
         while not rospy.is_shutdown():
             print(point_check)
-            if(point_check == 1):
+            if(point_check == 1 and cw_pass = 1):
+                point_check = 0
+                cw_pass = 0
+                aigo_pub_gps(float(splitline[2]), float(splitline[1]))
+                rospy.loginfo("Published Next waypoint.")
+                if(splitline[0] == 'p'):
+                    if(splitline[3].find("횡단보도")>0):
+                        cw=1
+            elif(point_check == 1 and cw_pass = 0):
                 point_check = 0
                 currentline = points.readline()
                 if(currentline == ''):
@@ -126,17 +147,28 @@ if __name__ == '__main__':
             #move_base.wait_for_result()
             #print(GoalStatus.SUCCEEDED)
             #if(move_base.get_state()==GoalStatus.SUCCEEDED):
-            while(client.loop()==0):
-             #   print(goal)
-                if(goal == 1):
-                    goal = 0
-                    point_check = 1
+            while True:
+                try:
+                    if(client.loop() == 0):
+                        pass
+                    if(goal == 1):
+                        goal = 0
+                        point_check = 1
+                        break
+                except KeyboardInterrupt:
                     break
 
             if(cw == 1):
+                rospy.loginfo("rotating behavior for crosswalk start")
+                currentline = points.readline()
+                if(currentline == ''):
+                    break
+                splitline = currentline.split(',')
+                aigo_pub_gps_angle(float(splitline[2]), float(splitline[1]))
                 publish.single(topic="/detect/cw", payload="1", hostname="163.180.117.43")
                 rospy.loginfo("wait_for_signal loop start")
                 wait_for_signal() 
+                cw_pass = 1
             time.sleep(0.1)
         rospy.loginfo("Finish")
             

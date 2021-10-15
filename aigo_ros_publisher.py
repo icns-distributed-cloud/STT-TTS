@@ -95,7 +95,7 @@ if __name__ == '__main__':
     rospy.loginfo("MQTT Connected.")
 
 
-    with open("route_ros.txt", 'r') as points:
+    with open("/home/ubuntu/catkin_ws/src/aigo_stt_tts/src/route_ros.txt", 'r') as points:
         currentline = points.readline()
         splitline = currentline.split(',')
         print(splitline[2], splitline[1])

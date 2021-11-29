@@ -3,6 +3,10 @@ import requests
 import json
 import settings
 import currentgps
+"""
+interlocked Tmap API 
+"""
+
 def get_location(destination):
     
     center_lon, center_lat = currentgps.get_gps()##  #currentgps.get_gps()

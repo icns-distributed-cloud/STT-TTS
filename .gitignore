@@ -1,6 +1,7 @@
-/venv
+/env
 .idea
 .vscode
 /env
 /environmentVariable
 secrets.json
+

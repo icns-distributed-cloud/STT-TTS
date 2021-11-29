@@ -1,5 +1,7 @@
 from google.cloud import texttospeech
 import playsound
+
+
 client = texttospeech.TextToSpeechClient()
 
 voice_eng = texttospeech.VoiceSelectionParams(
@@ -36,7 +38,18 @@ def makeFile(textList, *adder):
             with open('tts_output/' + str(adder) + str(i) + '.wav', 'wb') as out:
                 out.write(exchange_kor(text))
 
+def speech_destination(input_text):
+    speech_text = input_text + "까지 안내를 시작합니다"
+    behavior = [[speech_text]]
+    makeFile(behavior, 'destination_speech')
+
+def speech_route_information(input_text):
+    speech_text = input_text
+    behavior = [[speech_text]]
+    makeFile(behavior, 'route_information')
+
 #location = ['안녕','in a clothing store','at a construction site']
 #makeFile(location,'location')
-behavior = [['안녕안녕',]]
-makeFile(behavior,'test')
+#behavior = [['명령어가 존재하지 않습니다. 저를 다시 불러주세요.',]]
+#makeFile(behavior,'commandNotFound')
+#playsound.playsound('./tts_output/parden0_kor.mp3')

@@ -151,7 +151,7 @@ def playInformationSound():
 
         p.terminate()
 
-def sender():
+def PointCheck():
     port = serial.Serial('/dev/ttyACM0', baudrate=460800, timeout=1)
     gps = UbloxGps(port)
     point_check = 0
@@ -267,7 +267,7 @@ def listen_print_loop(responses, stream):
                 aigo_destination_speech.speech_destination(command)
                 stream.status = 1
                 playsound.playsound('./tts_output/destination_speech0_kor.wav')
-                t1 = threading.Thread(target=sender)
+                t1 = threading.Thread(target=PointCheck)
                 t1.start()
                 stream.status = 0    
                 aigo_state = 0
